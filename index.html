@@ -1,247 +1,968 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pomodoro</title>
+  <meta charset="UTF-8">
 
-<link rel="manifest" href="manifest.json">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"
+  >
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Pomodoro">
 
-<style>
-body{
-margin:0;
-background:black;
-color:white;
-font-family:-apple-system;
-text-align:center;
-padding:10px;
-}
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="apple-touch-startup-image" href="icon.png">
 
-/* 상단 */
-.top{
-font-size:14px;
-opacity:0.7;
-}
+  <title>Pomodoro</title>
 
-/* 타이틀 */
-.title{
-font-size:22px;
-margin:5px;
-}
+  <style>
+    :root{
+      --bg:#000;
+      --card:#111214;
+      --sub:#1c1c1e;
+      --line:#2c2c2e;
+      --text:#fff;
+      --muted:#aaa;
+      --blue:#0a84ff;
+    }
 
-/* 원형 */
-.circle-wrap{
-position:relative;
-width:260px;
-height:260px;
-margin:15px auto;
-}
+    *{
+      box-sizing:border-box;
+    }
 
-svg{
-transform:rotate(-90deg);
-}
+    html, body{
+      margin:0;
+      width:100%;
+      min-height:100%;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      -webkit-tap-highlight-color:transparent;
+    }
 
-.timer{
-position:absolute;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-font-size:42px;
-}
+    body{
+      padding:
+        max(12px, env(safe-area-inset-top))
+        max(12px, env(safe-area-inset-right))
+        max(12px, env(safe-area-inset-bottom))
+        max(12px, env(safe-area-inset-left));
+    }
 
-/* 버튼 */
-.controls{
-display:flex;
-gap:10px;
-justify-content:center;
-}
+    .app{
+      width:100%;
+      max-width:430px;
+      min-height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      margin:0 auto;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+      gap:10px;
+    }
 
-.btn{
-flex:1;
-max-width:100px;
-background:#1f2937;
-padding:12px;
-border-radius:12px;
-}
+    .top-meta{
+      width:100%;
+      text-align:center;
+      margin-top:2px;
+    }
 
-.btn:active{
-transform:scale(0.9);
-background:#374151;
-}
+    #now{
+      color:var(--muted);
+      font-size:12px;
+    }
 
-/* 리스트 */
-#list{
-margin-top:10px;
-}
-</style>
+    #status{
+      color:var(--blue);
+      margin-top:4px;
+      font-size:13px;
+    }
+
+    h2{
+      margin:2px 0 0;
+      font-size:20px;
+    }
+
+    .section{
+      width:100%;
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px;
+    }
+
+    .section-title{
+      font-size:14px;
+      font-weight:700;
+      margin-bottom:10px;
+    }
+
+    .circle-wrap{
+      width:100%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:6px 0 2px;
+    }
+
+    .circle{
+      width:min(68vw, 240px);
+      height:min(68vw, 240px);
+      max-width:240px;
+      max-height:240px;
+      min-width:180px;
+      min-height:180px;
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .circle svg{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      transform:rotate(-90deg);
+    }
+
+    circle{
+      fill:none;
+      stroke-width:10;
+    }
+
+    .bg{
+      stroke:#1c1c1e;
+    }
+
+    .progress{
+      stroke:var(--blue);
+      stroke-linecap:round;
+      transition:stroke-dashoffset 0.25s linear;
+    }
+
+    #time{
+      position:absolute;
+      font-size:clamp(28px, 8vw, 40px);
+      font-weight:700;
+      letter-spacing:-0.5px;
+    }
+
+    #currentSubjectLabel{
+      margin-top:8px;
+      text-align:center;
+      font-size:13px;
+      color:#d1d1d6;
+      word-break:break-word;
+      min-height:18px;
+    }
+
+    .controls,
+    .controls-stack{
+      width:100%;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .controls button,
+    .controls-stack button,
+    .subject-actions button,
+    button.add-btn{
+      flex:1;
+    }
+
+    button{
+      padding:10px 12px;
+      border:none;
+      border-radius:12px;
+      background:var(--sub);
+      color:white;
+      font-size:14px;
+      font-weight:600;
+    }
+
+    button:active{
+      transform:scale(0.97);
+    }
+
+    button.active{
+      background:var(--blue);
+    }
+
+    button.secondary{
+      background:#2b2b2f;
+    }
+
+    input{
+      width:100%;
+      padding:11px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:#0c0c0d;
+      color:white;
+      font-size:14px;
+      outline:none;
+    }
+
+    .subject-list,
+    .stats-list{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height:220px;
+      overflow:auto;
+      -webkit-overflow-scrolling:touch;
+    }
+
+    .subject-item,
+    .stat-item{
+      width:100%;
+      background:#0d0d0f;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px;
+    }
+
+    .subject-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:8px;
+      margin-bottom:8px;
+    }
+
+    .subject-name{
+      font-size:14px;
+      font-weight:600;
+      word-break:break-word;
+    }
+
+    .subject-name.selected{
+      color:var(--blue);
+    }
+
+    .subject-badge{
+      flex-shrink:0;
+      font-size:11px;
+      color:#d1d1d6;
+      background:#1d1d20;
+      padding:4px 7px;
+      border-radius:999px;
+    }
+
+    .subject-actions{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+
+    .subject-actions button{
+      min-width:72px;
+      padding:8px 10px;
+      font-size:13px;
+      border-radius:10px;
+    }
+
+    .add-row{
+      display:flex;
+      gap:8px;
+      margin-top:10px;
+    }
+
+    .add-row input{
+      flex:1;
+    }
+
+    .add-row button{
+      flex:0 0 auto;
+      white-space:nowrap;
+    }
+
+    .empty{
+      color:var(--muted);
+      font-size:13px;
+      text-align:center;
+      padding:8px 0;
+    }
+
+    .footer-space{
+      height:8px;
+    }
+
+    @media (max-width:360px){
+      .subject-actions button,
+      .controls button{
+        min-width:100%;
+      }
+
+      .add-row{
+        flex-direction:column;
+      }
+    }
+  </style>
 </head>
 
 <body>
+  <div class="app">
+    <div class="top-meta">
+      <div id="now"></div>
+      <div id="status"></div>
+      <h2>🍅 Pomodoro</h2>
+    </div>
 
-<div class="top" id="status">🔥 집중 | 🍅 0 | 🔁 0</div>
-<div class="title">🍅 Pomodoro</div>
+    <div class="section">
+      <div class="circle-wrap">
+        <div class="circle">
+          <svg viewBox="0 0 220 220" aria-hidden="true">
+            <circle class="bg" cx="110" cy="110" r="92"></circle>
+            <circle id="progress" class="progress" cx="110" cy="110" r="92"></circle>
+          </svg>
+          <div id="time">25:00</div>
+        </div>
+      </div>
 
-<div class="circle-wrap">
-<svg width="260" height="260">
-<circle cx="130" cy="130" r="100" stroke="#222" stroke-width="10" fill="none"/>
-<circle id="progress" cx="130" cy="130" r="100" stroke="#3b82f6" stroke-width="10" fill="none"/>
-</svg>
-<div class="timer" id="timer">25:00</div>
-</div>
+      <div id="currentSubjectLabel">선택된 과목 없음</div>
 
-<div class="controls">
-<div class="btn" onclick="toggle()">▶</div>
-<div class="btn" onclick="resetAll()">🔄</div>
-<div class="btn" onclick="skip()">⏭</div>
-</div>
+      <div class="controls" style="margin-top:12px;">
+        <button id="toggleBtn" onclick="toggleTimer()">▶ 시작</button>
+        <button class="secondary" onclick="resetTimer()">🔄 초기화</button>
+      </div>
 
-<input id="input" placeholder="과목 입력">
-<button onclick="add()">추가</button>
-<button onclick="clearAll()">전체삭제</button>
-<button onclick="resetStudy()">공부시간 초기화</button>
+      <div class="controls-stack" style="margin-top:8px;">
+        <button class="secondary" onclick="nextPhase()">⏭ 다음 단계</button>
+      </div>
+    </div>
 
-<div id="list"></div>
+    <div class="section">
+      <div class="section-title">과목</div>
+      <div id="subjectList" class="subject-list"></div>
 
-<script>
-const circle=document.getElementById("progress");
-const r=100;
-const c=2*Math.PI*r;
-circle.style.strokeDasharray=c;
-circle.style.strokeDashoffset=0;
+      <div class="add-row">
+        <input id="newSubject" placeholder="과목 입력" maxlength="50">
+        <button class="add-btn" onclick="addSubject()">추가</button>
+      </div>
 
-let state={
-duration:1500,
-remain:1500,
-start:null,
-running:false,
-isBreak:false,
-pomo:0,
-cycle:0,
-current:null
-};
+      <div class="controls-stack" style="margin-top:10px;">
+        <button class="secondary" onclick="resetSubjects()">🗑 전체삭제</button>
+      </div>
+    </div>
 
-let subjects={};
+    <div class="section">
+      <div class="section-title">📊 공부시간</div>
+      <div id="stats" class="stats-list"></div>
 
-function update(){
-timer.innerText=format(state.remain);
-circle.style.strokeDashoffset=c*(1-state.remain/state.duration);
+      <div class="controls-stack" style="margin-top:10px;">
+        <button class="secondary" onclick="resetStats()">🔄 공부시간 초기화</button>
+      </div>
+    </div>
 
-status.innerText=`🔥 ${state.isBreak?"휴식":"집중"} | 🍅 ${state.pomo} | 🔁 ${state.cycle}`;
-}
+    <div class="footer-space"></div>
+  </div>
 
-function loop(){
-if(!state.running) return;
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
 
-let now=Date.now();
-state.remain=state.duration-Math.floor((now-state.start)/1000);
+    const FOCUS_TIME = 1500;
+    const BREAK_TIME = 300;
 
-if(state.remain<=0){
-next();
-return;
-}
+    const RADIUS = 92;
+    const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-update();
-requestAnimationFrame(loop);
-}
+    let mode = "focus";
+    let remainingTime = FOCUS_TIME;
+    let interval = null;
+    let targetEndTime = null;
+    let sessions = 0;
+    let current = null;
+    let lastStudySyncAt = null;
 
-function next(){
-if(!state.isBreak){
-state.isBreak=true;
-state.duration=300;
-state.pomo++;
-notify("휴식");
-}else{
-state.isBreak=false;
-state.duration=1500;
+    let subjects = JSON.parse(localStorage.getItem("subjects")) || [];
+    let rawStats = JSON.parse(localStorage.getItem("stats")) || {};
+    let stats = normalizeStats(rawStats);
 
-if(state.pomo>=4){
-state.running=false;
-state.pomo=0;
-state.cycle++;
-notify("사이클 완료");
-return;
-}
-}
-state.start=Date.now();
-state.remain=state.duration;
-loop();
-}
+    let timerState = JSON.parse(localStorage.getItem("timerState")) || null;
 
-function toggle(){
-if(!state.current){
-alert("과목 선택 먼저");
-return;
-}
+    const progress = document.getElementById("progress");
+    const toggleBtn = document.getElementById("toggleBtn");
+    const timeEl = document.getElementById("time");
+    const nowEl = document.getElementById("now");
+    const statusEl = document.getElementById("status");
+    const subjectListEl = document.getElementById("subjectList");
+    const statsEl = document.getElementById("stats");
+    const currentSubjectLabelEl = document.getElementById("currentSubjectLabel");
+    const newSubjectInput = document.getElementById("newSubject");
 
-if(state.running){
-state.running=false;
-}else{
-state.start=Date.now()-(state.duration-state.remain)*1000;
-state.running=true;
-loop();
-}
-}
+    progress.setAttribute("stroke-dasharray", CIRCUMFERENCE);
+    progress.setAttribute("stroke-dashoffset", "0");
 
-function resetAll(){
-state={duration:1500,remain:1500,start:null,running:false,isBreak:false,pomo:0,cycle:0,current:null};
-subjects={};
-render();
-update();
-}
+    function normalizeStats(input){
+      const out = {};
+      for (const key in input) {
+        const value = Number(input[key]);
+        out[key] = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+      }
+      return out;
+    }
 
-function skip(){
-if(state.isBreak) next();
-}
+    function requestNoticePermissionOnce(){
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+      }
+    }
 
-function add(){
-let v=input.value;
-if(!v) return;
-subjects[v]=subjects[v]||0;
-state.current=v;
-render();
-}
+    function haptic(ms = 25){
+      if (navigator.vibrate) navigator.vibrate(ms);
+    }
 
-function clearAll(){
-subjects={};
-render();
-}
+    function notify(msg, cycleEnd = false){
+      if ("Notification" in window && Notification.permission === "granted") {
+        try {
+          new Notification(msg, { silent: true });
+        } catch (e) {}
+      }
 
-function resetStudy(){
-for(let s in subjects) subjects[s]=0;
-render();
-}
+      if (cycleEnd) {
+        haptic(60);
+      }
+    }
 
-function del(s){
-delete subjects[s];
-render();
-}
+    function formatTime(totalSeconds){
+      const safe = Math.max(0, totalSeconds);
+      const m = Math.floor(safe / 60);
+      const s = safe % 60;
+      return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    }
 
-function render(){
-list.innerHTML="";
-for(let s in subjects){
-list.innerHTML+=`${s} ${Math.floor(subjects[s]/60)}분 <button onclick="del('${s}')">삭제</button><br>`;
-}
-}
+    function formatStudy(seconds){
+      const total = Math.max(0, Math.floor(seconds));
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
 
-function notify(msg){
-if(Notification.permission==="granted"){
-new Notification(msg);
-}
-navigator.vibrate(50);
-}
+      if (h > 0) return `${h}시간 ${m}분 ${s}초`;
+      if (m > 0) return `${m}분 ${s}초`;
+      return `${s}초`;
+    }
 
-function format(t){
-let m=Math.floor(t/60);
-let s=t%60;
-return m+":"+(s<10?"0":"")+s;
-}
+    function getDurationByMode(){
+      return mode === "focus" ? FOCUS_TIME : BREAK_TIME;
+    }
 
-if(Notification.permission!=="granted"){
-Notification.requestPermission();
-}
+    function getSelectedSubjectText(){
+      return current ? `현재 과목: ${current}` : "선택된 과목 없음";
+    }
 
-update();
-</script>
+    function renderCurrentSubject(){
+      currentSubjectLabelEl.innerText = getSelectedSubjectText();
+    }
 
+    function renderStatus(){
+      statusEl.innerText =
+        (mode === "focus" ? "🔥 집중" : "😴 휴식") +
+        ` | 🍅 ${sessions}회 | 🔁 ${Math.floor(sessions / 4)}사이클`;
+    }
+
+    function updateButton(){
+      if (interval) {
+        toggleBtn.innerText = "⏸ 일시정지";
+        toggleBtn.classList.add("active");
+      } else {
+        toggleBtn.innerText = "▶ 시작";
+        toggleBtn.classList.remove("active");
+      }
+    }
+
+    function updateNowClock(){
+      nowEl.innerText = new Date().toLocaleTimeString();
+    }
+
+    setInterval(updateNowClock, 1000);
+    updateNowClock();
+
+    function renderProgress(timeLeft){
+      const duration = getDurationByMode();
+      const ratio = Math.max(0, Math.min(1, timeLeft / duration));
+      const offset = CIRCUMFERENCE * (1 - ratio);
+      progress.style.strokeDashoffset = String(offset);
+    }
+
+    function renderTime(timeLeft = remainingTime){
+      timeEl.innerText = formatTime(timeLeft);
+      renderProgress(timeLeft);
+    }
+
+    function saveCore(){
+      localStorage.setItem("subjects", JSON.stringify(subjects));
+      localStorage.setItem("stats", JSON.stringify(stats));
+    }
+
+    function saveTimerState(){
+      const state = {
+        mode,
+        remainingTime,
+        sessions,
+        current,
+        isRunning: !!interval,
+        targetEndTime,
+        lastStudySyncAt
+      };
+      localStorage.setItem("timerState", JSON.stringify(state));
+    }
+
+    function saveAll(){
+      saveCore();
+      saveTimerState();
+    }
+
+    function syncStudyTime(){
+      if (!(interval && mode === "focus" && current && lastStudySyncAt)) return;
+
+      const now = Date.now();
+      const diffMs = now - lastStudySyncAt;
+
+      if (diffMs < 1000) return;
+
+      const addSeconds = Math.floor(diffMs / 1000);
+
+      if (addSeconds > 0) {
+        if (typeof stats[current] !== "number") stats[current] = 0;
+        stats[current] += addSeconds;
+        lastStudySyncAt += addSeconds * 1000;
+        saveCore();
+      }
+    }
+
+    function calculateTimeLeft(){
+      if (!(interval && targetEndTime)) return remainingTime;
+      const diff = targetEndTime - Date.now();
+      return Math.max(0, Math.ceil(diff / 1000));
+    }
+
+    function update(){
+      syncStudyTime();
+
+      const timeLeft = calculateTimeLeft();
+      remainingTime = timeLeft;
+
+      renderTime(timeLeft);
+      renderStats();
+
+      if (interval && targetEndTime && Date.now() >= targetEndTime) {
+        handleComplete();
+        return;
+      }
+
+      saveTimerState();
+    }
+
+    function start(){
+      if (mode === "focus" && !current) {
+        alert("과목을 먼저 선택해줘.");
+        return;
+      }
+
+      if (interval) return;
+
+      requestNoticePermissionOnce();
+      haptic(20);
+
+      targetEndTime = Date.now() + (remainingTime * 1000);
+      lastStudySyncAt = Date.now();
+      interval = setInterval(update, 250);
+
+      updateButton();
+      renderStatus();
+      update();
+      saveTimerState();
+    }
+
+    function pause(){
+      if (!interval) return;
+
+      syncStudyTime();
+
+      clearInterval(interval);
+      interval = null;
+
+      remainingTime = calculateTimeLeft();
+      targetEndTime = null;
+      lastStudySyncAt = null;
+
+      renderTime(remainingTime);
+      updateButton();
+      renderStats();
+      saveTimerState();
+    }
+
+    function toggleTimer(){
+      if (interval) {
+        pause();
+      } else {
+        start();
+      }
+    }
+
+    function resetTimer(){
+      syncStudyTime();
+
+      clearInterval(interval);
+      interval = null;
+
+      mode = "focus";
+      remainingTime = FOCUS_TIME;
+      targetEndTime = null;
+      lastStudySyncAt = null;
+      sessions = 0;
+
+      renderTime(remainingTime);
+      updateButton();
+      renderStatus();
+      renderStats();
+      saveTimerState();
+    }
+
+    function handleComplete(){
+      syncStudyTime();
+
+      clearInterval(interval);
+      interval = null;
+      targetEndTime = null;
+      lastStudySyncAt = null;
+
+      if (mode === "focus") {
+        sessions++;
+
+        if (sessions % 4 === 0) {
+          mode = "break";
+          remainingTime = BREAK_TIME;
+
+          renderStatus();
+          renderTime(remainingTime);
+          updateButton();
+          saveTimerState();
+
+          notify("🎉 1사이클 끝!", true);
+          setTimeout(() => {
+            alert("🎉 1사이클 끝!");
+          }, 50);
+          return;
+        }
+
+        notify("집중 시간 완료", false);
+        mode = "break";
+        remainingTime = BREAK_TIME;
+
+        renderStatus();
+        renderTime(remainingTime);
+        saveTimerState();
+        start();
+        return;
+      }
+
+      notify("휴식 종료, 다시 집중 시작", false);
+      mode = "focus";
+      remainingTime = FOCUS_TIME;
+
+      renderStatus();
+      renderTime(remainingTime);
+      saveTimerState();
+      start();
+    }
+
+    function nextPhase(){
+      syncStudyTime();
+
+      clearInterval(interval);
+      interval = null;
+      targetEndTime = null;
+      lastStudySyncAt = null;
+
+      if (mode === "focus") {
+        sessions++;
+        mode = "break";
+        remainingTime = BREAK_TIME;
+      } else {
+        mode = "focus";
+        remainingTime = FOCUS_TIME;
+      }
+
+      renderStatus();
+      renderTime(remainingTime);
+      saveTimerState();
+      start();
+    }
+
+    function renderSubjects(){
+      subjectListEl.innerHTML = "";
+
+      if (subjects.length === 0) {
+        subjectListEl.innerHTML = `<div class="empty">아직 추가된 과목이 없어</div>`;
+        return;
+      }
+
+      subjects.forEach((subject) => {
+        const item = document.createElement("div");
+        item.className = "subject-item";
+
+        const isSelected = current === subject ? "selected" : "";
+        const badgeText = current === subject ? "선택됨" : "";
+
+        item.innerHTML = `
+          <div class="subject-top">
+            <div class="subject-name ${isSelected}">${escapeHtml(subject)}</div>
+            <div class="subject-badge">${badgeText}</div>
+          </div>
+          <div class="subject-actions">
+            <button onclick="selectSubject('${escapeJs(subject)}')">선택</button>
+            <button onclick="editSubject('${escapeJs(subject)}')">수정</button>
+            <button onclick="deleteSubject('${escapeJs(subject)}')">삭제</button>
+          </div>
+        `;
+
+        subjectListEl.appendChild(item);
+      });
+    }
+
+    function renderStats(){
+      statsEl.innerHTML = "";
+
+      const entries = Object.entries(stats)
+        .filter(([, value]) => value > 0)
+        .sort((a, b) => b[1] - a[1]);
+
+      if (entries.length === 0) {
+        statsEl.innerHTML = `<div class="empty">아직 기록된 공부시간이 없어</div>`;
+        return;
+      }
+
+      entries.forEach(([subject, seconds]) => {
+        const item = document.createElement("div");
+        item.className = "stat-item";
+
+        item.innerHTML = `
+          <div style="font-weight:700; margin-bottom:4px; word-break:break-word;">${escapeHtml(subject)}</div>
+          <div style="color:#d1d1d6; font-size:13px;">${formatStudy(seconds)}</div>
+        `;
+
+        statsEl.appendChild(item);
+      });
+    }
+
+    function selectSubject(subject){
+      current = subject;
+      renderSubjects();
+      renderCurrentSubject();
+      saveTimerState();
+    }
+
+    function addSubject(){
+      const value = newSubjectInput.value.trim();
+      if (!value) return;
+
+      if (!subjects.includes(value)) {
+        subjects.push(value);
+        if (typeof stats[value] !== "number") stats[value] = 0;
+      }
+
+      current = value;
+      newSubjectInput.value = "";
+
+      saveAll();
+      renderSubjects();
+      renderStats();
+      renderCurrentSubject();
+    }
+
+    function deleteSubject(subject){
+      if (interval && current === subject) {
+        pause();
+      }
+
+      subjects = subjects.filter((item) => item !== subject);
+      delete stats[subject];
+
+      if (current === subject) current = null;
+
+      saveAll();
+      renderSubjects();
+      renderStats();
+      renderCurrentSubject();
+    }
+
+    function editSubject(subject){
+      const renamed = prompt("수정", subject);
+      if (!renamed) return;
+
+      const nextName = renamed.trim();
+      if (!nextName) return;
+
+      if (nextName !== subject && subjects.includes(nextName)) {
+        alert("이미 있는 과목명이야.");
+        return;
+      }
+
+      subjects = subjects.map((item) => item === subject ? nextName : item);
+
+      const oldValue = stats[subject] || 0;
+      delete stats[subject];
+      stats[nextName] = oldValue;
+
+      if (current === subject) current = nextName;
+
+      saveAll();
+      renderSubjects();
+      renderStats();
+      renderCurrentSubject();
+    }
+
+    function resetSubjects(){
+      if (!confirm("과목과 공부시간을 모두 지울까?")) return;
+
+      pause();
+
+      subjects = [];
+      stats = {};
+      current = null;
+
+      saveAll();
+      renderSubjects();
+      renderStats();
+      renderCurrentSubject();
+    }
+
+    function resetStats(){
+      if (!confirm("공부시간 기록을 초기화할까?")) return;
+
+      syncStudyTime();
+
+      const newStats = {};
+      subjects.forEach((subject) => {
+        newStats[subject] = 0;
+      });
+      stats = newStats;
+
+      saveAll();
+      renderStats();
+    }
+
+    function restoreTimerState(){
+      if (!timerState) {
+        current = current || null;
+        renderTime(remainingTime);
+        return;
+      }
+
+      mode = timerState.mode || "focus";
+      remainingTime = Number.isFinite(timerState.remainingTime)
+        ? timerState.remainingTime
+        : FOCUS_TIME;
+      sessions = Number.isFinite(timerState.sessions)
+        ? timerState.sessions
+        : 0;
+      current = timerState.current || null;
+      targetEndTime = timerState.targetEndTime || null;
+      lastStudySyncAt = timerState.lastStudySyncAt || null;
+
+      if (timerState.isRunning && targetEndTime) {
+        const now = Date.now();
+
+        if (mode === "focus" && current && lastStudySyncAt) {
+          const elapsedSec = Math.max(0, Math.floor((now - lastStudySyncAt) / 1000));
+          if (elapsedSec > 0) {
+            if (typeof stats[current] !== "number") stats[current] = 0;
+            stats[current] += elapsedSec;
+            saveCore();
+          }
+        }
+
+        const left = Math.max(0, Math.ceil((targetEndTime - now) / 1000));
+        remainingTime = left;
+
+        if (left <= 0) {
+          if (mode === "focus") {
+            sessions++;
+
+            if (sessions % 4 === 0) {
+              mode = "break";
+              remainingTime = BREAK_TIME;
+              notify("🎉 1사이클 끝!", true);
+              setTimeout(() => {
+                alert("🎉 1사이클 끝!");
+              }, 80);
+            } else {
+              mode = "break";
+              remainingTime = BREAK_TIME;
+            }
+          } else {
+            mode = "focus";
+            remainingTime = FOCUS_TIME;
+          }
+
+          targetEndTime = null;
+          lastStudySyncAt = null;
+          saveTimerState();
+        } else {
+          interval = setInterval(update, 250);
+          lastStudySyncAt = now;
+        }
+      }
+
+      renderTime(remainingTime);
+    }
+
+    function escapeHtml(str){
+      return str
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function escapeJs(str){
+      return str
+        .replaceAll("\\", "\\\\")
+        .replaceAll("'", "\\'")
+        .replaceAll('"', '\\"');
+    }
+
+    newSubjectInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        addSubject();
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        syncStudyTime();
+        saveAll();
+      } else {
+        update();
+      }
+    });
+
+    window.addEventListener("pagehide", () => {
+      syncStudyTime();
+      saveAll();
+    });
+
+    window.addEventListener("pageshow", () => {
+      update();
+    });
+
+    renderSubjects();
+    renderStats();
+    restoreTimerState();
+    renderCurrentSubject();
+    renderStatus();
+    updateButton();
+    renderTime(remainingTime);
+    saveTimerState();
+  </script>
 </body>
 </html>
