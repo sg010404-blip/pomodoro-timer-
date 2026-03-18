@@ -8,58 +8,37 @@
 <link rel="manifest" href="manifest.json">
 
 <style>
-*{box-sizing:border-box;}
-
 body{
 margin:0;
 background:black;
 color:white;
 font-family:-apple-system;
-display:flex;
-flex-direction:column;
-align-items:center;
-min-height:100vh;
+text-align:center;
 padding:10px;
 }
 
+/* 상단 */
 .top{
-font-size:13px;
+font-size:14px;
 opacity:0.7;
-margin-top:5px;
 }
 
+/* 타이틀 */
 .title{
-font-size:24px;
-margin:5px 0 10px;
+font-size:22px;
+margin:5px;
 }
 
 /* 원형 */
 .circle-wrap{
 position:relative;
-width:65vw;
-max-width:260px;
-aspect-ratio:1/1;
-margin:10px auto;
+width:260px;
+height:260px;
+margin:15px auto;
 }
 
 svg{
-position:absolute;
-top:0;left:0;
-width:100%;height:100%;
 transform:rotate(-90deg);
-}
-
-circle{
-fill:none;
-stroke-width:10;
-}
-
-.bg{stroke:#222;}
-
-.progress{
-stroke:#3b82f6;
-stroke-dasharray:565.48;
-transition:0.5s linear;
 }
 
 .timer{
@@ -67,27 +46,22 @@ position:absolute;
 top:50%;
 left:50%;
 transform:translate(-50%,-50%);
-font-size:clamp(32px,8vw,44px);
-font-weight:600;
+font-size:42px;
 }
 
 /* 버튼 */
 .controls{
 display:flex;
 gap:10px;
-margin-top:10px;
-width:100%;
-max-width:320px;
+justify-content:center;
 }
 
 .btn{
 flex:1;
-text-align:center;
+max-width:100px;
 background:#1f2937;
-border-radius:14px;
-padding:12px 0;
-font-size:14px;
-transition:transform 0.08s, background 0.2s;
+padding:12px;
+border-radius:12px;
 }
 
 .btn:active{
@@ -95,47 +69,22 @@ transform:scale(0.9);
 background:#374151;
 }
 
-.sub{
-display:flex;
-gap:10px;
-margin-top:8px;
-width:100%;
-max-width:320px;
-}
-
-.section{
-margin-top:15px;
-font-size:16px;
-}
-
-input{
-width:70%;
-padding:10px;
-border-radius:10px;
-border:none;
-margin-top:8px;
-}
-
+/* 리스트 */
 #list{
 margin-top:10px;
-width:100%;
-max-width:320px;
-max-height:180px;
-overflow:auto;
-font-size:14px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="top" id="status">🔥 집중 | 🍅 0회 | 🔁 0사이클</div>
+<div class="top" id="status">🔥 집중 | 🍅 0 | 🔁 0</div>
 <div class="title">🍅 Pomodoro</div>
 
 <div class="circle-wrap">
-<svg>
-<circle class="bg" cx="50%" cy="50%" r="45%"/>
-<circle id="progress" class="progress" cx="50%" cy="50%" r="45%"/>
+<svg width="260" height="260">
+<circle cx="130" cy="130" r="100" stroke="#222" stroke-width="10" fill="none"/>
+<circle id="progress" cx="130" cy="130" r="100" stroke="#3b82f6" stroke-width="10" fill="none"/>
 </svg>
 <div class="timer" id="timer">25:00</div>
 </div>
@@ -146,26 +95,24 @@ font-size:14px;
 <div class="btn" onclick="skip()">⏭</div>
 </div>
 
-<div class="section">과목</div>
 <input id="input" placeholder="과목 입력">
-
-<div class="sub">
-<div class="btn" onclick="add()">추가</div>
-<div class="btn" onclick="clearAll()">전체삭제</div>
-</div>
-
-<div class="section">📊 공부시간</div>
-<div class="sub">
-<div class="btn" onclick="resetStudy()">초기화</div>
-</div>
+<button onclick="add()">추가</button>
+<button onclick="clearAll()">전체삭제</button>
+<button onclick="resetStudy()">공부시간 초기화</button>
 
 <div id="list"></div>
 
 <script>
-let state = JSON.parse(localStorage.getItem("timerState")) || {
+const circle=document.getElementById("progress");
+const r=100;
+const c=2*Math.PI*r;
+circle.style.strokeDasharray=c;
+circle.style.strokeDashoffset=0;
+
+let state={
 duration:1500,
-start:null,
 remain:1500,
+start:null,
 running:false,
 isBreak:false,
 pomo:0,
@@ -173,56 +120,25 @@ cycle:0,
 current:null
 };
 
-let subjects = JSON.parse(localStorage.getItem("subjects")) || {};
-let lastTick=0;
-
-function save(){
-localStorage.setItem("timerState",JSON.stringify(state));
-}
-
-function haptic(t="light"){
-if(navigator.vibrate){
-navigator.vibrate(t==="heavy"?60:t==="medium"?30:10);
-}
-}
-
-function notify(msg){
-if(Notification.permission==="granted"){
-new Notification(msg);
-}
-haptic("heavy");
-}
-
-function fmt(t){
-let m=Math.floor(t/60),s=t%60;
-return m+":"+(s<10?"0":"")+s;
-}
+let subjects={};
 
 function update(){
-timer.innerText=fmt(state.remain);
-progress.style.strokeDashoffset=565.48*(1-state.remain/state.duration);
+timer.innerText=format(state.remain);
+circle.style.strokeDashoffset=c*(1-state.remain/state.duration);
 
-let now=Date.now();
-if(state.running && !state.isBreak && state.current){
-if(now-lastTick>=1000){
-subjects[state.current]=(subjects[state.current]||0)+1;
-lastTick=now;
-localStorage.setItem("subjects",JSON.stringify(subjects));
-render();
-}
-}
-
-status.innerText=`🔥 ${state.isBreak?"휴식":"집중"} | 🍅 ${state.pomo}회 | 🔁 ${state.cycle}사이클`;
-save();
+status.innerText=`🔥 ${state.isBreak?"휴식":"집중"} | 🍅 ${state.pomo} | 🔁 ${state.cycle}`;
 }
 
 function loop(){
 if(!state.running) return;
 
 let now=Date.now();
-state.remain = state.duration - Math.floor((now-state.start)/1000);
+state.remain=state.duration-Math.floor((now-state.start)/1000);
 
-if(state.remain<=0){next();return;}
+if(state.remain<=0){
+next();
+return;
+}
 
 update();
 requestAnimationFrame(loop);
@@ -233,18 +149,18 @@ if(!state.isBreak){
 state.isBreak=true;
 state.duration=300;
 state.pomo++;
-notify("휴식 시작");
+notify("휴식");
 }else{
 state.isBreak=false;
-state.cycle++;
+state.duration=1500;
+
 if(state.pomo>=4){
-notify("1사이클 완료");
 state.running=false;
 state.pomo=0;
+state.cycle++;
+notify("사이클 완료");
 return;
 }
-state.duration=1500;
-notify("다음 포모도로");
 }
 state.start=Date.now();
 state.remain=state.duration;
@@ -252,7 +168,11 @@ loop();
 }
 
 function toggle(){
-haptic();
+if(!state.current){
+alert("과목 선택 먼저");
+return;
+}
+
 if(state.running){
 state.running=false;
 }else{
@@ -260,49 +180,39 @@ state.start=Date.now()-(state.duration-state.remain)*1000;
 state.running=true;
 loop();
 }
-save();
 }
 
 function resetAll(){
-haptic("medium");
-state={
-duration:1500,start:null,remain:1500,running:false,isBreak:false,pomo:0,cycle:0,current:null
-};
+state={duration:1500,remain:1500,start:null,running:false,isBreak:false,pomo:0,cycle:0,current:null};
 subjects={};
-localStorage.clear();
-render();update();
+render();
+update();
 }
 
 function skip(){
-haptic();
 if(state.isBreak) next();
 }
 
 function add(){
-haptic();
 let v=input.value;
 if(!v) return;
 subjects[v]=subjects[v]||0;
 state.current=v;
-localStorage.setItem("subjects",JSON.stringify(subjects));
 render();
 }
 
 function clearAll(){
 subjects={};
-localStorage.setItem("subjects",JSON.stringify(subjects));
 render();
 }
 
 function resetStudy(){
 for(let s in subjects) subjects[s]=0;
-localStorage.setItem("subjects",JSON.stringify(subjects));
 render();
 }
 
 function del(s){
 delete subjects[s];
-localStorage.setItem("subjects",JSON.stringify(subjects));
 render();
 }
 
@@ -313,12 +223,24 @@ list.innerHTML+=`${s} ${Math.floor(subjects[s]/60)}분 <button onclick="del('${s
 }
 }
 
+function notify(msg){
+if(Notification.permission==="granted"){
+new Notification(msg);
+}
+navigator.vibrate(50);
+}
+
+function format(t){
+let m=Math.floor(t/60);
+let s=t%60;
+return m+":"+(s<10?"0":"")+s;
+}
+
 if(Notification.permission!=="granted"){
 Notification.requestPermission();
 }
 
-render();update();
-if(state.running) loop();
+update();
 </script>
 
 </body>
